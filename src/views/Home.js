@@ -1,25 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { IconButton, Input, Icon, Button } from "@vechaiui/react";
-import { SearchIcon, SelectorIcon } from "@heroicons/react/outline";
+import {
+  SearchIcon,
+  SelectorIcon,
+  PlusIcon,
+  XIcon
+} from "@heroicons/react/outline";
 import * as Popover from "@radix-ui/react-popover";
 import axios from "axios";
 import { useDetectClickOutside } from "react-detect-click-outside";
+import { Dialog, Transition } from "@headlessui/react";
+import { cx } from "@vechaiui/react";
+import SearchHeading from "../components/SearchHeading";
+import { searchEngines } from "../config";
+import Bookmarks from "../components/Bookmarks";
 
 export default function Home() {
-  const searchEngines = [
-    {
-      name: "Baidu",
-      url: "https://www.baidu.com/s?wd="
-    },
-    {
-      name: "Google",
-      url: "https://www.google.com/search?q="
-    },
-    {
-      name: "Bing",
-      url: "https://www.bing.com/search?q="
-    }
-  ];
   const [currentSearchEngine, setCurrentSearchEngine] = useState(
     JSON.parse(localStorage.getItem("defaultSearchEngine")) || searchEngines[0]
   );
@@ -27,7 +23,21 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [predict, setPredict] = useState([]);
   const [inputBoxFocus, setInputBoxFocus] = useState(false);
-  const ref = useDetectClickOutside({ onTriggered: () => setInputBoxFocus(false) });
+  const [bookmarkInput, setBookmarkInput] = useState({
+    name: "",
+    link: ""
+  });
+  const [showDialog, setShowDialog] = React.useState(false);
+  const [bookmarks, setBookmarks] = useState(
+    JSON.parse(localStorage.getItem("bookmarks")) || []
+  );
+  const [editBookmarkVal, setEditBookmarkVal] = useState({
+    name: "",
+    link: ""
+  });
+  const ref = useDetectClickOutside({
+    onTriggered: () => setInputBoxFocus(false)
+  });
 
   const search = (query = null) => {
     if (query !== null && query.replaceAll(" ", "") !== "") {
@@ -38,6 +48,9 @@ export default function Home() {
       // window.location.href = currentSearchEngine.url + query;
     }
   };
+
+  const handleOpen = () => setShowDialog(true);
+  const handleClose = () => setShowDialog(false);
 
   const getPredict = (query) => {
     axios
@@ -54,18 +67,50 @@ export default function Home() {
         setPredict(tmp);
       });
   };
+
+  const addBookmark = () => {
+    if (
+      bookmarkInput.name.replace(" ", "") === "" ||
+      bookmarkInput.link.replace(" ", "") === ""
+    ) {
+      return;
+    } else {
+      localStorage.setItem(
+        "bookmarks",
+        JSON.stringify([
+          ...bookmarks,
+          { name: bookmarkInput.name, link: bookmarkInput.link }
+        ])
+      );
+      setBookmarks([
+        ...bookmarks,
+        { name: bookmarkInput.name, link: bookmarkInput.link }
+      ]);
+    }
+  };
+
+  const deleteBookmark = (bookmark) => {
+    const tmp = bookmarks.filter((val, idx) => {
+      return bookmark.link !== val.link && bookmark.name !== val.name;
+    });
+    setBookmarks(tmp);
+    localStorage.setItem("bookmarks", JSON.stringify(tmp));
+    return tmp;
+  };
+
+  const editBookmark = (bookmarkOld, idx) => {
+    // const tmp = deleteBookmark(bookmarkOld);
+    // console.log(idx)
+    const tmp = bookmarks;
+    tmp.splice(idx, 1, editBookmarkVal);
+    setBookmarks(tmp);
+    localStorage.setItem("bookmarks", JSON.stringify(tmp));
+  }
+
   return (
     <div className="container mx-auto px-36 mt-36">
       <div className="flex justify-center flex-col gap-6">
-        <div>
-          <p className="text-3xl font-mono text-center">
-            Tabbie
-            <sup>
-              <small className="text-base">α</small>
-            </sup>
-          </p>
-          <p className="text-base italic text-center ">{currentSearchEngine.name} the World.</p>
-        </div>
+        <SearchHeading name={currentSearchEngine.name} />
         <div ref={ref} className="transition-all">
           <Input.Group>
             <Input.LeftElement
@@ -131,33 +176,126 @@ export default function Home() {
 
             <Input.RightElement
               children={
-                <IconButton variant="ghost" color="primary" onClick={() => search()}>
+                <IconButton
+                  variant="ghost"
+                  color="primary"
+                  onClick={() => search()}
+                >
                   <Icon as={SearchIcon} className="w-4 h-4" />
                 </IconButton>
               }
             />
           </Input.Group>
-          <div
-            className={`rounded mt-2 py-2 bg-neutral-100 dark:bg-neutral-700 shadow transition-all ${
-              inputBoxFocus && predict.length ? "" : "hidden"
-            }`}
-          >
-            {predict.map((value, index) => {
-              return (
-                <div
-                  key={index}
-                  className="px-7 py-1 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:cursor-pointer"
-                  onClick={() => {
-                    setSearchQuery(value);
-                    search(value);
-                  }}
-                >
-                  {value}
-                </div>
-              );
-            })}
+          <div className="max-w-full relative">
+            <div
+              className={`rounded z-dropdown w-full mt-2 py-2 bg-neutral-100 dark:bg-neutral-700 shadow transition-all absolute ${
+                inputBoxFocus && predict.length ? "" : "hidden"
+              }`}
+            >
+              {predict.map((value, index) => {
+                return (
+                  <div
+                    key={index}
+                    className="px-7 py-1 transition-all hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:cursor-pointer"
+                    onClick={() => {
+                      setSearchQuery(value);
+                      search(value);
+                    }}
+                  >
+                    {value}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
+        <h2 className="text-lg">
+          Bookmarks
+          <IconButton className="ml-3" size="xs" onClick={handleOpen}>
+            <Icon as={PlusIcon} className="w-3.5 h-3.5" />
+          </IconButton>
+        </h2>
+        {bookmarks.length <= 0 ? (
+          <p className="text-muted text-sm text-center">
+            No bookmarks at this moment. Try adding one!
+          </p>
+        ) : null}
+        <Transition show={showDialog} as={React.Fragment}>
+          <Dialog
+            as="div"
+            className="fixed inset-0 overflow-y-auto z-modal"
+            open={showDialog}
+            onClose={handleClose}
+          >
+            <Dialog.Overlay className="fixed top-0 left-0 w-screen h-screen bg-blackAlpha-600" />
+            <Transition.Child
+              as={React.Fragment}
+              enter="transition ease-out duration-150"
+              enterFrom="transform scale-95"
+              enterTo="transform scale-100"
+              leave="transition ease-in duration-100"
+              leaveFrom="transform scale-100"
+              leaveTo="transform scale-95"
+            >
+              <div
+                className={cx(
+                  "relative flex flex-col w-full mx-auto my-24 rounded shadow-lg",
+                  "bg-white border border-gray-200",
+                  "dark:bg-neutral-800 dark:border-neutral-700",
+                  "max-w-md"
+                )}
+              >
+                <header className="relative px-6 py-5 text-lg font-semibold">
+                  Add Bookmark
+                </header>
+                <button
+                  onClick={handleClose}
+                  className={cx(
+                    "absolute text-sm cursor-base text-gray-600 dark:text-gray-400 hover:text-primary-500 top-4 right-4"
+                  )}
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
+                <div className="flex-1 px-6 py-2">
+                  <p className="text-base font-normal text-neutral-500 mb-3">
+                    Please provide bookmark information.
+                  </p>
+                  <Input
+                    placeholder="Name"
+                    className="mb-3"
+                    onChange={(e) =>
+                      setBookmarkInput({
+                        ...bookmarkInput,
+                        name: e.target.value
+                      })
+                    }
+                  />
+                  <Input
+                    placeholder="Link"
+                    onChange={(e) =>
+                      setBookmarkInput({
+                        ...bookmarkInput,
+                        link: e.target.value
+                      })
+                    }
+                  />
+                </div>
+                <footer className="px-6 py-4">
+                  <Button
+                    color="primary"
+                    onClick={() => {
+                      handleClose();
+                      addBookmark();
+                    }}
+                  >
+                    Complete
+                  </Button>
+                </footer>
+              </div>
+            </Transition.Child>
+          </Dialog>
+        </Transition>
+        <Bookmarks bookmarks={bookmarks} onDeleteBookmark={deleteBookmark} onEditBookmark={editBookmark} onSetEditBookmarkVal={setEditBookmarkVal} editBookmarkVal={editBookmarkVal} />
       </div>
     </div>
   );
