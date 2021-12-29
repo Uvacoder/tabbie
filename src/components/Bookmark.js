@@ -6,7 +6,7 @@ export default function Bookmark(props) {
   return (
     <div
       onClick={() => window.open(props.link)}
-      className="rounded text-center p-3 bg-neutral-50 dark:bg-neutral-700 hover:cursor-pointer w-24 h-24 transition-all hover:bg-neutral-100 dark:hover:bg-neutral-600"
+      className="rounded w-full mb-2 md:w-24 text-center p-3 bg-neutral-50 dark:bg-neutral-700 hover:cursor-pointer h-24 transition-all hover:bg-neutral-100 dark:hover:bg-neutral-600"
     >
       <Avatar
         name={props.name}
