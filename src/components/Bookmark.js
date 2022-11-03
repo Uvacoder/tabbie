@@ -10,7 +10,7 @@ export default function Bookmark(props) {
     >
       <Avatar
         name={props.name}
-        size="xl"
+        size="3xl"
         className="mb-2"
         style={{
           backgroundColor: stringToColour(props.name + " " + props.link),
